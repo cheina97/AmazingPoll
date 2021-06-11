@@ -1,0 +1,64 @@
+GET http://localhost:3001/api/polls HTTP/1.1
+
+###
+
+GET http://localhost:3001/api/polls/46/questions HTTP/1.1
+
+###
+
+GET http://localhost:3001/api/polls/46/answers HTTP/1.1
+
+###
+
+POST http://localhost:3001/api/polls/ HTTP/1.1
+content-type: application/json
+
+{
+  "name": "Questionario nuovo ",
+  "questions": [
+    
+  ]
+}
+
+###
+
+POST http://localhost:3001/api/answers/ HTTP/1.1
+content-type: application/json
+
+{
+    "id_submission": 24,
+    "questions": [
+        {
+            "id_quest": 235,
+            "values": ["Risposta alla domanda aperta 24"]
+        }
+    ]
+}
+
+###
+
+POST http://localhost:3001/api/submissions/ HTTP/1.1
+content-type: application/json
+
+{
+    "id_poll": 46,
+    "name_user":"Silvia"
+}
+
+###
+
+POST http://localhost:3001/api/sessions HTTP/1.1
+content-type: application/json
+
+{
+    "username": "admin1@poll.it",
+    "password": "Qwerty1234"
+}
+
+###
+
+DELETE http://localhost:3001/api/sessions/current HTTP/1.1
+
+###
+
+GET http://localhost:3001/api/sessions/current HTTP/1.1

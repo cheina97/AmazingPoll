@@ -1,24 +1,35 @@
-import logo from './logo.svg';
-import './App.css';
+import "bootstrap/dist/css/bootstrap.css";
+import {
+  BrowserRouter as Router,
+  Redirect,
+  Route,
+  Switch,
+} from "react-router-dom";
+import { useState } from "react";
+import LoginForm from "./Components/LoginForm";
+import "./App.css";
+import Main from "./Components/Main";
 
 function App() {
+  const [userName, setUserName] = useState("");
+
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
+    <Router>
+      {/* {userName?<Redirect to="/All" />:<Redirect to="/login" />} */}
+      <Switch>
+        <Route exact path="/" render={() => <Redirect to="/login" />} />
+        <Route
+          exact
+          path="/login"
+          render={() => <LoginForm setUserName={setUserName} />}
+        />
+        <Route
+          exact
+          path="/main"
+          render={() => <Main userName={userName} setUserName={setUserName}/>}
+        />
+      </Switch>
+    </Router>
   );
 }
 
