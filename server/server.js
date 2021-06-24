@@ -1,23 +1,18 @@
-//@ts-check
 "use strict";
 
 const express = require("express");
-const morgan = require("morgan"); // logging middleware
-const { check, validationResult } = require("express-validator"); // validation middleware
-const dao = require("./dao"); // module for accessing the DB
+const morgan = require("morgan");
+const { check, validationResult } = require("express-validator");
+const dao = require("./dao");
 const passport = require("passport");
 const LocalStrategy = require("passport-local").Strategy;
 const session = require("express-session");
 
-// init express
 const app = express();
 const port = 3001;
 
-// set-up the middlewares
 app.use(morgan("dev"));
 app.use(express.json());
-
-//PARTE NUOVA PER AUTENTICAZIONE
 
 passport.use(
   new LocalStrategy(function (username, password, done) {
@@ -40,7 +35,7 @@ passport.deserializeUser((id, done) => {
   dao
     .db_getuserById(id)
     .then((user) => {
-      done(null, user); // this will be available in req.user
+      done(null, user);
     })
     .catch((err) => {
       done(err, null);
@@ -49,7 +44,6 @@ passport.deserializeUser((id, done) => {
 
 app.use(
   session({
-    // by default, Passport uses a MemoryStore to keep track of the sessions
     secret: "EsameDiWebApp1",
     resave: false,
     saveUninitialized: false,
@@ -64,7 +58,6 @@ const isLoggedIn = (req, res, next) => {
   return res.status(401).json({ error: "not authenticated" });
 };
 
-//// POST /api/sessions ////
 app.post(
   "/api/sessions",
   [check("username").isEmail()],
@@ -77,37 +70,21 @@ app.post(
     passport.authenticate("local", (err, user, info) => {
       if (err) return next(err);
       if (!user) {
-        // display wrong login messages
         return res.status(401).json(info);
       }
-      // success, perform the login
       req.login(user, (err) => {
         if (err) return next(err);
 
-        // req.user contains the authenticated user, we send all the user info back
-        // this is coming from userDao.getUser()
         return res.json({ email: req.user.email, name: req.user.name });
       });
     })(req, res, next);
   }
 );
 
-//// GET /api/sessions/current ////
-app.get("/api/sessions/current", (req, res) => {
-  if (req.isAuthenticated()) {
-    res.status(200).send(req.user.name);
-  } else res.status(401).send("");
-});
-
-//// DELETE /api/sessions/current ////
 app.delete("/api/sessions/current", (req, res) => {
   req.logout();
   res.end();
 });
-
-//FINE PARTE NUOVA PER AUTENTICAZIONE
-
-//FUNZIONI CHE CREANO I JSON
 
 const insertPoll = async (poll, id_manager) => {
   const id_poll = await dao.db_insertPoll(poll.name, id_manager);
@@ -178,7 +155,7 @@ const getAnswers = async (id_poll, manager_logged) => {
 
   indexes_answers_uniq.forEach((x) => {
     const answ = answers.find((y) => y.id_submission == x);
-    if(!answ) return [];
+    if (!answ) return [];
     const tmp = answers
       .filter((y) => y.id_submission == x)
       .map((z) => {
@@ -187,6 +164,7 @@ const getAnswers = async (id_poll, manager_logged) => {
 
     answers_reduced.push({
       id_submission: answ.id_submission,
+      user: answ.user,
       questions: [...tmp],
     });
   });
@@ -215,11 +193,6 @@ const getAnswers = async (id_poll, manager_logged) => {
   return answers_rereduced;
 };
 
-//FINE FUNZIONI CHE CREANO I JSON
-
-/*** APIs ***/
-
-//// GET /api/tasks ////
 app.get("/api/polls", (req, res) => {
   dao
     .db_getPollList(req.isAuthenticated() ? req.user.id : null)
@@ -231,20 +204,19 @@ app.get("/api/polls", (req, res) => {
     );
 });
 
-//// GET /api/tasks/important ////
 app.get(
   "/api/polls/:id/questions",
   [check("id").isInt({ min: 1 })],
   (req, res) => {
-    getPollQuestions(req.params.id)
-      .then((questions) => {
-        res.status(200).json(questions);
-      })
-      .catch((err) =>
-        res.status(500).json({
-          errors: `Database errors: ${err}.`,
+      getPollQuestions(req.params.id)
+        .then((questions) => {
+          res.status(200).json(questions);
         })
-      );
+        .catch((err) =>
+          res.status(500).json({
+            errors: `Database errors: ${err}.`,
+          })
+        );
   }
 );
 
@@ -252,15 +224,15 @@ app.get(
   "/api/polls/:id/answers",
   [isLoggedIn, check("id").isInt({ min: 1 })],
   (req, res) => {
-    getAnswers(req.params.id, req.user.id)
-      .then((questions) => {
-        res.status(200).json(questions);
-      })
-      .catch((err) =>
-        res.status(500).json({
-          errors: `Database errors: ${err}.`,
+      getAnswers(req.params.id, req.user.id)
+        .then((questions) => {
+          res.status(200).json(questions);
         })
-      );
+        .catch((err) =>
+          res.status(500).json({
+            errors: `Database errors: ${err}.`,
+          })
+        );
   }
 );
 
@@ -273,7 +245,15 @@ app.post(
       .exists()
       .isArray()
       .custom((questions) => {
-        if(questions.length===0) throw new Error("Cannot create a poll without questions");
+        if (questions.length === 0)
+          throw new Error("Cannot create a poll without questions");
+        if (
+          questions
+            .map((x) => x.position)
+            .filter((v, i) => questions.map((x) => x.position).indexOf(v) === i)
+            .length != questions.length
+        )
+          throw new Error("Cannot insert repeated positions");
         for (const question of questions) {
           if (typeof question.name !== "string")
             throw new Error("Question name is not a string");
@@ -294,9 +274,9 @@ app.post(
             );
           if (Array.isArray(question.options)) {
             for (const option of question.options) {
-              if (typeof option !== "string")
+              if (typeof option !== "string" || option === "")
                 throw new Error(
-                  `Question ${question.name} option is not a string`
+                  `Question ${question.name} option ${option} is not a string or void`
                 );
             }
           } else {
@@ -306,13 +286,17 @@ app.post(
           }
 
           if (question.closed) {
-            if (question.max < question.min || question.min < 0 || question.max < 1) 
+            if (
+              question.max < question.min ||
+              question.min < 0 ||
+              question.max < 1
+            )
               throw new Error(
                 `Question ${question.name} min max values are not consistent with a close question`
               );
             if (
-              question.options.length < question.min ||
-              question.options.length < question.max
+              question.options.length <= question.min || 
+              question.options.length < question.max 
             )
               throw new Error(
                 `Question ${question.name} min max values are not consistent with the number of options`
@@ -321,8 +305,16 @@ app.post(
               throw new Error(
                 `Question ${question.name} options are more than 10`
               );
+            if (
+              question.options.filter(
+                (v, i) => question.options.indexOf(v) === i
+              ).length != question.options.length
+            )
+              throw new Error(
+                `Question ${question.name} options contain double values`
+              );
           } else {
-            if (question.min < 0 || question.min > 1 || question.max != 1) 
+            if (question.min < 0 || question.min > 1 || question.max != 1)
               throw new Error(
                 `Question ${question.name} min max values are not consistent with an open question`
               );
@@ -383,8 +375,10 @@ app.post(
 
           if (Array.isArray(question.values)) {
             for (const value of question.values) {
-              if (typeof value !== "string")
-                `Question ${question.id_quest} value is not a string`;
+              if (typeof value !== "string" || !value)
+                throw new Error(
+                  `Question ${question.id_quest} value is not a string or is a void string`
+                );
             }
           } else {
             throw new Error(
@@ -392,26 +386,38 @@ app.post(
             );
           }
 
-          await dao.db_getQuestionById(question.id_quest).then((rows) => {
-            if (rows.length === 0)
-              throw new Error(`Question ${question.id_quest} doesn't exist`);
-            if (
-              question.values.length < rows[0].min ||
-              question.values.length > rows[0].max
-            )
-              throw new Error(
-                `Question ${question.id_quest} options are  not consistent with question's min or max`
-              );
-          });
+          const rows = await dao.db_getQuestionById(question.id_quest);
 
-          if (question.closed) {
+          if (rows.length === 0)
+            throw new Error(`Question ${question.id_quest} doesn't exist`);
+          if (
+            question.values.length < rows[0].min ||
+            question.values.length > rows[0].max
+          )
+            throw new Error(
+              `Question ${question.id_quest} options are  not consistent with question's min or max`
+            );
+
+          if (
+            !rows[0].closed &&
+            question.values.length > 0 &&
+            question.values[0].length > 200
+          ) {
+            throw new Error(
+              `Question ${question.id_quest} answer cannot exceed 200 chars`
+            );
+          }
+
+          if (rows[0].closed) {
             await dao
               .db_getOptionsByQuestId(question.id_quest)
               .then((options) => {
-                const questionOptions = options.map((o) => o.values);
+                const questionOptions = options.map((o) => o.value_option);
                 for (const value of question.values) {
                   if (!questionOptions.includes(value))
-                    `Question ${question.id_quest} values are not consistent with possible values for this question`;
+                    throw new Error(
+                      `Question ${question.id_quest} values are not consistent with possible values for this question`
+                    );
                 }
               });
           }
@@ -430,7 +436,7 @@ app.post(
           for (let index = 0; index < v1.length; index++) {
             if (v1[index] !== v2[index])
               throw new Error(
-                `There are some questions in the answer not included in the poll`
+                `There are some questions in the answer not included in the poll or repeated`
               );
           }
         });
@@ -450,7 +456,7 @@ app.post(
     };
 
     insertAnswer(answer)
-      .then((id) => res.status(200).end())
+      .then((id) => res.status(201).end())
       .catch((err) =>
         res.status(503).json({
           errors: `Database error during the creation of task: ${err}.`,
@@ -482,8 +488,6 @@ app.post(
   }
 );
 
-/**************************************************************************/
-// Activate the server
 app.listen(port, () => {
   console.log(`Express server listening at http: //localhost:${port}`);
 });

@@ -2,13 +2,13 @@ import { Button, OverlayTrigger, Tooltip } from "react-bootstrap";
 import { Plus } from "react-bootstrap-icons";
 
 const AddButton = (props) => {
-  const { addFunction, id, disabled,alternativeMessage } = props;
+  const { addFunction, id, alternativeMessage } = props;
   return (
     <OverlayTrigger
       defaultShow={true}
       overlay={
         <Tooltip id={`tooltip-${id}`}>
-          {alternativeMessage||"Click here to add a new option"}
+          {alternativeMessage || "Click here to add a new option"}
         </Tooltip>
       }
     >

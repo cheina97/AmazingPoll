@@ -7,28 +7,35 @@ import RefreshButton from "../RefreshButton";
 import NewPollButton from "../NewPollButton";
 import PollModal from "../PollModal";
 import ErrorAlert from "../ErrorAlert";
+import LoadingOverlay from "../LoadingOverlay";
 
 const Main = (props) => {
-  const [reloadPoll, setReloadPoll] = useState(true);
+  const [reloadPollList, setReloadPollList] = useState(true);
   const [polls, setPolls] = useState("");
-  const [disabledPollsId, setDisabledPollsId] = useState([""]);
   const [showModal, setShowModal] = useState(false);
   const [errorApi, setErrorApi] = useState("");
+  const [loadingPolls, setLoadingPolls] = useState(true);
 
   useEffect(() => {
-    if (reloadPoll === true) {
+    if (reloadPollList === true) {
+      setLoadingPolls(true);
       getPolls()
         .then((x) => {
           setPolls(x);
           setErrorApi("");
+          setLoadingPolls(false);
         })
-        .catch((err) => setErrorApi(err));
-      setReloadPoll(false);
+        .catch((err) => {
+          setLoadingPolls(false);
+          setErrorApi(err);
+        });
+      setReloadPollList(false);
     }
-  }, [reloadPoll]);
+  }, [reloadPollList]);
 
   return (
     <>
+      {loadingPolls && <LoadingOverlay />}
       <MyNav userName={props.userName} setUserName={props.setUserName} />
       <div className="mainpage">
         <Container
@@ -36,7 +43,7 @@ const Main = (props) => {
           className="pb-5 "
           style={{ marginTop: "75px", marginLeft: "0px", marginRight: "0px" }}
         >
-          <Row sm={3}>
+          <Row xs={1} sm={1} md={3}>
             {polls &&
               polls.map((poll) => (
                 <Col key={poll.id}>
@@ -44,9 +51,8 @@ const Main = (props) => {
                     key={poll.id}
                     title={poll.name}
                     id={poll.id}
-                    disabled={disabledPollsId.includes(poll.id)}
-                    setDisabledPollsId={setDisabledPollsId}
                     mode={props.userName ? "results" : "vote"}
+                    setReloadPollList={setReloadPollList}
                   />
                 </Col>
               ))}
@@ -54,14 +60,14 @@ const Main = (props) => {
           {errorApi && <ErrorAlert errors={errorApi} />}
         </Container>
       </div>
-      <RefreshButton setReload={setReloadPoll} />
+      <RefreshButton setReloadPollList={setReloadPollList} />
       {props.userName && <NewPollButton setShowModal={setShowModal} />}
       {props.userName && (
         <PollModal
           mode={"create"}
           showModal={showModal}
           setShowModal={setShowModal}
-          setReload={setReloadPoll}
+          setReloadPollList={setReloadPollList}
         />
       )}
     </>

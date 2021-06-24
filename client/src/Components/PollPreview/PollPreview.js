@@ -1,27 +1,34 @@
-import { Card, Button } from "react-bootstrap";
+import { Card, Button, Spinner } from "react-bootstrap";
 import { useState, useEffect } from "react";
 import PollModal from "../PollModal";
 import { getAnswers } from "../../Api/GetApi";
 import ErrorAlert from "../ErrorAlert";
 
 const PollPreview = (props) => {
-  const { id, mode, title, disabled, setDisabledPollsId } = props;
+  const { id, mode, title, setReloadPollList } = props;
 
   const [showModal, setShowModal] = useState(false);
   const [answers, setAnswers] = useState([]);
   const [errorApi, setErrorApi] = useState("");
   const [reloadAnswers, setReloadAnswers] = useState(true);
+  const [loadPoll, setLoadPoll] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (mode === "results" && reloadAnswers) {
+      setLoading(true);
       getAnswers(id)
         .then((a) => {
           setAnswers(a);
           setErrorApi("");
-          setReloadAnswers(false);
+          setLoading(false);
         })
-        .catch((err) => setErrorApi(err));
+        .catch((err) => {
+          setErrorApi(err);
+          setLoading(false);
+        });
     }
+    setReloadAnswers(false);
   }, [mode, id, reloadAnswers]);
 
   return (
@@ -36,25 +43,44 @@ const PollPreview = (props) => {
                 : errorApi && <ErrorAlert errors={errorApi} />}
             </Card.Text>
           )}
-          <Button
-            className="mt-2"
-            disabled={!answers.length && mode === "results"}
-            variant="success"
-            onClick={() => {
-              setReloadAnswers(true)
-              setShowModal(true);
-            }}
-          >
-            {mode === "results" ? "Show results" : "Vote"}
-          </Button>
-          {mode === "results" && (
+          <div className="d-flex justify-content-center">
             <Button
-              onClick={() => setReloadAnswers(true)}
-              className="mt-2 ml-2"
+              className="mt-2 w-50"
+              block
+              disabled={!answers.length && mode === "results"}
               variant="success"
+              onClick={() => {
+                setLoadPoll(true);
+                if (mode === "results") setReloadAnswers(true);
+                setShowModal(true);
+              }}
             >
-              Reload results
+              {mode === "results" ? "Show results" : "Vote"}
             </Button>
+          </div>
+
+          {mode === "results" && (
+            <div className="d-flex justify-content-center">
+              <Button
+                onClick={() => setReloadAnswers(true)}
+                className="mt-2 w-50"
+                variant="success"
+                disabled={loading}
+                block
+              >
+                Reload results
+                {loading && (
+                  <Spinner
+                    className="ml-2"
+                    size="sm"
+                    animation="border"
+                    as="span"
+                    role="status"
+                    aria-hidden="true"
+                  />
+                )}
+              </Button>
+            </div>
           )}
         </Card.Body>
       </Card>
@@ -67,6 +93,12 @@ const PollPreview = (props) => {
         answers={answers}
         setAnswers={setAnswers}
         setReloadAnswers={setReloadAnswers}
+        loadPoll={loadPoll}
+        setLoadPoll={setLoadPoll}
+        externalErrorApi={errorApi}
+        setReloadPollList={setReloadPollList}
+        setLoading={setLoading}
+        loading={loading}
       />
     </>
   );

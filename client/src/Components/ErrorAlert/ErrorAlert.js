@@ -1,5 +1,4 @@
 import { Alert, Collapse } from "react-bootstrap";
-import { EmojiFrownFill } from "react-bootstrap-icons";
 import { useState } from "react";
 
 function ErrorAlert(props) {
@@ -9,7 +8,7 @@ function ErrorAlert(props) {
     <div>
       <Alert variant="danger">
         <Alert.Heading>
-          {message} {<EmojiFrownFill className="pb-1" />}
+          {message}
         </Alert.Heading>
         {!hideReloadMessage && <p>Please, reload or try again later.</p>}
         {details ? (

@@ -1,6 +1,6 @@
 const getPolls = () => {
     return new Promise((resolve, reject) => {
-      fetch('http://192.168.10.104:3000/api/polls', {
+      fetch('http://localhost:3000/api/polls', {
         method: "GET",
       })
         .then((res) => {
@@ -33,7 +33,7 @@ const getPolls = () => {
 
 const getQuestions = (pollId) => {
     return new Promise((resolve, reject) => {
-      fetch(`http://192.168.10.104:3000/api/polls/${pollId}/questions`, {
+      fetch(`http://localhost:3000/api/polls/${pollId}/questions`, {
         method: "GET",
       })
         .then((res) => {
@@ -66,7 +66,7 @@ const getQuestions = (pollId) => {
 
 const getAnswers = (pollId) => {
     return new Promise((resolve, reject) => {
-      fetch(`http://192.168.10.104:3000/api/polls/${pollId}/answers`, {
+      fetch(`http://localhost:3000/api/polls/${pollId}/answers`, {
         method: "GET",
       })
         .then((res) => {

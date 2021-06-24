@@ -1,2 +1,2 @@
-import PollOpenQuest from './PollOpenQuest'
-export default PollOpenQuest
+import PollOpenQuestCreate from './PollOpenQuestCreate'
+export default PollOpenQuestCreate

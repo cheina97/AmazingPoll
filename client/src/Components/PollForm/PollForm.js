@@ -1,12 +1,24 @@
-import { Form, Button } from "react-bootstrap";
+import { Form, Button, Spinner } from "react-bootstrap";
 import { useState } from "react";
-import { createPoll } from "../../Api/PostApi";
+import { createPoll, createSubscription, sendAnswer } from "../../Api/PostApi";
 import ErrorAlert from "../ErrorAlert";
 
 const PollForm = (props) => {
-  const { mode, setPoll, poll, answers, setShowModal, setReload } = props;
+  const {
+    idPoll,
+    mode,
+    setPoll,
+    poll,
+    answers,
+    setShowModal,
+    setReloadPollList,
+    setAnswers,
+    setNewUsername,
+    newUsername,
+  } = props;
   const [validated, setValidated] = useState(false);
   const [errorApi, setErrorApi] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const handleSubmit = (event) => {
     event.preventDefault();
@@ -43,17 +55,68 @@ const PollForm = (props) => {
               hideReloadMessage: true,
             });
           } else {
+            setLoading(true);
             createPoll(poll)
               .then(() => {
                 setPoll("");
-                setReload(true);
+                setReloadPollList(true);
                 setShowModal(false);
+                setErrorApi("");
+                setNewUsername("");
+                setLoading(false);
               })
-              .catch((err) => setErrorApi(err));
+              .catch((err) => {
+                setLoading(false);
+                setErrorApi(err);
+              });
           }
         }
       } else if (mode === "vote") {
-        //TODO
+        const wrongQuestions = [];
+        for (const answer of answers) {
+          const question = poll.questions.find((q) => q.id === answer.id_quest);
+          if (
+            question.max < answer.values.length ||
+            question.min > answer.values.length
+          ) {
+            wrongQuestions.push(
+              `${question.name} (position:${question.position}) `
+            );
+          }
+        }
+        if (wrongQuestions.length !== 0) {
+          setErrorApi({
+            message: `Closed answers must respect the maximum and minimum value`,
+            details: `Errors in questions ${wrongQuestions.toString()}. Please select the correct number of answers`,
+            hideReloadMessage: true,
+          });
+        } else {
+          setLoading(true);
+          createSubscription(idPoll, newUsername)
+            .then((s) => {
+              sendAnswer(parseInt(s.submissionId), answers)
+                .then((x) => {
+                  setAnswers(
+                    poll.questions.map((q) => {
+                      return { id_quest: q.id, values: [] };
+                    })
+                  );
+                  setNewUsername("");
+                  setShowModal(false);
+                  setErrorApi("");
+                  setReloadPollList(true);
+                  setLoading(false);
+                })
+                .catch((err) => {
+                  setLoading(false);
+                  setErrorApi(err);
+                });
+            })
+            .catch((err) => {
+              setLoading(false);
+              setErrorApi(err);
+            });
+        }
       }
     }
   };
@@ -66,11 +129,25 @@ const PollForm = (props) => {
           <ErrorAlert errors={errorApi} />
         </div>
       )}
-
       {mode !== "results" && (
         <div className="d-flex justify-content-center">
-          <Button className="m-2" variant="success" type="submit">
+          <Button
+            disabled={loading}
+            className="m-2"
+            variant="success"
+            type="submit"
+          >
             {mode === "create" ? "Create Poll" : "Send Answers"}
+            {loading && (
+              <Spinner
+                className="ml-2"
+                size="sm"
+                animation="border"
+                as="span"
+                role="status"
+                aria-hidden="true"
+              />
+            )}
           </Button>
         </div>
       )}

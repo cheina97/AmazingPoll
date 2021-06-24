@@ -1,56 +1,72 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Modal, Button } from "react-bootstrap";
 import { ArrowRepeat } from "react-bootstrap-icons";
 import { getQuestions } from "../../Api/GetApi";
+import ErrorAlert from "../ErrorAlert";
 import PollPagination from "../PollPagination";
 import PollHeader from "../PollHeader";
 import PollForm from "../PollForm";
-import PollOpenQuest from "../PollOpenQuest";
 import PollAddQuest from "../PollAddQuest";
-import PollClosedQuest from "../PollClosedQuest/PollClosedQuest";
+import PollOpenQuest from "../PollOpenQuest";
+import PollClosedQuest from "../PollClosedQuest";
+import PollOpenQuestCreate from "../PollOpenQuestCreate";
+import PollClosedQuestCreate from "../PollClosedQuestCreate";
+import Loading from "../Loading";
 
 const PollModal = (props) => {
   const {
     idPoll,
-    setShowModal,
-    showModal,
-    mode,
     title,
-    setDisabledPollsId,
-    setReload,
-    setAnswers,
+    mode,
+    showModal,
+    setShowModal,
     answers,
-    setReloadAnswers
+    setAnswers,
+    setReloadAnswers,
+    loadPoll,
+    setLoadPoll,
+    externalErrorApi,
+    setReloadPollList,
+    setLoading,
+    loading,
   } = props;
 
   const [poll, setPoll] = useState("");
   const [newUsername, setNewUsername] = useState("");
   const [currentUserNum, setCurrentUserNum] = useState(0);
-
-  /* useEffect(() => {
-    if (mode !== "create") {
-      getQuestions(idPoll).then((x) =>
-        setPoll({ name: title, questions: [...x] })
-      );
-    }
-  }, [idPoll, mode]);
+  const [errorApi, setErrorApi] = useState("");
 
   useEffect(() => {
-    if (mode === "results") {
-      if (reloadAnswers) {
-        getAnswers(idPoll).then((x) => setAnswers(x));
-        setReloadAnswers(false);
-      }
+    if (mode !== "create" && !poll && loadPoll) {
+      setLoading(true);
+      getQuestions(idPoll)
+        .then((x) => {
+          setPoll({ name: title, questions: [...x] });
+          if (mode === "vote") {
+            setAnswers(
+              x.map((q) => {
+                return { id_quest: q.id, values: [] };
+              })
+            );
+          }
+          setLoading(false);
+        })
+        .catch((err) => {
+          setLoading(false);
+          setErrorApi(err);
+        });
+      setLoadPoll(false);
     }
-  }, [mode, idPoll, reloadAnswers]); */
-
-  const loadData = () => {
-    if (mode !== "create") {
-      getQuestions(idPoll).then((x) =>
-        setPoll({ name: title, questions: [...x] })
-      );
-    }
-  };
+  }, [
+    loadPoll,
+    idPoll,
+    title,
+    mode,
+    poll,
+    setLoadPoll,
+    setAnswers,
+    setLoading,
+  ]);
 
   const addQuest = (closed) => {
     setPoll((old) => {
@@ -88,15 +104,13 @@ const PollModal = (props) => {
     });
   };
 
-  const addQuestOption = (position) => {
+  const addQuestOption = (index) => {
     setPoll((old) => {
-      if (old.questions[position].options.length < 10) {
+      if (old.questions[index].options.length < 10) {
         return {
           ...old,
-          questions: old.questions.map((q) => {
-            return q.position === position
-              ? { ...q, options: [...q.options, ""] }
-              : q;
+          questions: old.questions.map((q, i) => {
+            return index === i ? { ...q, options: [...q.options, ""] } : q;
           }),
         };
       } else {
@@ -105,13 +119,17 @@ const PollModal = (props) => {
     });
   };
 
-  const deleteQuestOption = (position, indexOption) => {
+  const deleteQuestOption = (index, indexOption) => {
     setPoll((old) => {
-      if (old.questions[position].options.length > 1) {
+      if (
+        old.questions[index].options.length > 1 &&
+        old.questions[index].max < old.questions[index].options.length &&
+        old.questions[index].min + 1 < old.questions[index].options.length
+      ) {
         return {
           ...old,
-          questions: old.questions.map((q) => {
-            return q.position === position
+          questions: old.questions.map((q, i) => {
+            return i === index
               ? { ...q, options: q.options.filter((o, i) => i !== indexOption) }
               : q;
           }),
@@ -122,12 +140,12 @@ const PollModal = (props) => {
     });
   };
 
-  const setQuestOption = (position, indexOption, value) => {
+  const setQuestOption = (index, indexOption, value) => {
     setPoll((old) => {
       return {
         ...old,
-        questions: old.questions.map((q) => {
-          return q.position === position
+        questions: old.questions.map((q, iq) => {
+          return index === iq
             ? {
                 ...q,
                 options: q.options.map((o, i) =>
@@ -140,11 +158,11 @@ const PollModal = (props) => {
     });
   };
 
-  const deleteQuest = (position) => {
+  const deleteQuest = (index) => {
     setPoll((old) => {
       return {
         ...old,
-        questions: [...old.questions.filter((q) => q.position !== position)],
+        questions: [...old.questions.filter((q, i) => i !== index)],
       };
     });
   };
@@ -206,6 +224,8 @@ const PollModal = (props) => {
                   ? a.values.includes(value)
                     ? a.values.filter((v) => v !== value)
                     : [...a.values, value]
+                  : value === ""
+                  ? []
                   : [value],
               }
             : a
@@ -216,33 +236,33 @@ const PollModal = (props) => {
     }
   };
 
-  const setTitleQuest = (position, title) => {
+  const setTitleQuest = (index, title) => {
     setPoll((old) => {
       return {
         ...old,
         questions: [
-          ...old.questions.map((q) =>
-            q.position === position ? { ...q, name: title } : q
+          ...old.questions.map((q, i) =>
+            index === i ? { ...q, name: title } : q
           ),
         ],
       };
     });
   };
 
-  const setMinQuest = (position, minString, closed) => {
+  const setMinQuest = (index, minString, closed) => {
     const min = parseInt(minString);
     setPoll((old) => {
       if (
         (min >= 0 &&
-          min < old.questions[position].options.length &&
-          min <= old.questions[position].max) ||
+          min < old.questions[index].options.length &&
+          min <= old.questions[index].max) ||
         !closed
       ) {
         return {
           ...old,
           questions: [
-            ...old.questions.map((q) =>
-              q.position === position ? { ...q, min: min } : q
+            ...old.questions.map((q, i) =>
+              i === index ? { ...q, min: min } : q
             ),
           ],
         };
@@ -252,19 +272,19 @@ const PollModal = (props) => {
     });
   };
 
-  const setMaxQuest = (position, maxString) => {
+  const setMaxQuest = (index, maxString) => {
     const max = parseInt(maxString);
     setPoll((old) => {
       if (
         max > 0 &&
-        max <= old.questions[position].options.length &&
-        max >= old.questions[position].min
+        max <= old.questions[index].options.length &&
+        max >= old.questions[index].min
       ) {
         return {
           ...old,
           questions: [
-            ...old.questions.map((q) =>
-              q.position === position ? { ...q, max: max } : q
+            ...old.questions.map((q, i) =>
+              index === i ? { ...q, max: max } : q
             ),
           ],
         };
@@ -273,20 +293,18 @@ const PollModal = (props) => {
       }
     });
   };
-
   return (
     <Modal
       show={showModal}
       onHide={() => setShowModal(false)}
       size="xl"
       centered
-      onEnter={loadData}
       contentClassName="px-4 py-1"
     >
       <Modal.Header closeButton>
         <Modal.Title>
           {mode === "create" ? "Create a new Poll" : title}
-          {mode === "results" ? (
+          {mode === "results" && (
             <Button
               onClick={() => setReloadAnswers(true)}
               className="ml-3"
@@ -295,122 +313,154 @@ const PollModal = (props) => {
             >
               Reload results <ArrowRepeat className="ml-1" size="16px" />
             </Button>
-          ) : null}
+          )}
         </Modal.Title>
       </Modal.Header>
       <Modal.Body>
-        
-        {(mode !== "results" || answers.length !== 0) && (
-          <PollForm
-            setShowModal={setShowModal}
-            mode={mode}
-            poll={poll}
-            setPoll={setPoll}
-            setReload={setReload}
-          >
-            <PollHeader
+        {!errorApi && !externalErrorApi && !loading ? (
+          (mode !== "results" || answers.length !== 0) && (
+            <PollForm
+              idPoll={idPoll}
               mode={mode}
-              title={poll.name || ""}
-              setTitle={setTitle}
-              username={
-                (answers &&
-                  answers[currentUserNum] &&
-                  answers[currentUserNum].id_submission) ||
-                newUsername
-              }
-              setUsername={setNewUsername}
-            />
-            {poll &&
-              poll.questions &&
-              poll.questions.map((q, index) =>
-                q.closed ? (
-                  <PollClosedQuest
-                    id_quest={q.id}
-                    key={`closed_${index}`}
-                    mode={mode}
-                    position={q.position}
-                    title={q.name}
-                    setTitle={setTitleQuest}
-                    setAnswer={setAnswer}
-                    moveQuest={moveQuest}
-                    index={index}
-                    deleteQuest={deleteQuest}
-                    options={q.options}
-                    addQuestOption={addQuestOption}
-                    deleteQuestOption={deleteQuestOption}
-                    setQuestOption={setQuestOption}
-                    max={q.max}
-                    min={q.min}
-                    setMaxQuest={setMaxQuest}
-                    setMinQuest={setMinQuest}
-                    answers={
-                      mode === "results"
-                        ? answers &&
-                          answers.length &&
-                          answers[currentUserNum] &&
-                          answers[currentUserNum].questions &&
-                          answers[currentUserNum].questions.find(
-                            (a) => a.id_quest === q.id
-                          )
-                          ? answers[currentUserNum].questions.find(
-                              (a) => a.id_quest === q.id
-                            ).values
-                          : []
-                        : answers &&
-                          answers.length &&
-                          answers.find((a) => a.id_quest === q.id)
-                        ? answers.find((a) => a.id_quest === q.id).values
-                        : []
-                    }
-                    setAnswers={setAnswer}
-                  />
-                ) : (
-                  <PollOpenQuest
-                    id_quest={q.id}
-                    key={`open_${index}`}
-                    mode={mode}
-                    title={q.name}
-                    answer={
-                      mode === "results"
-                        ? answers &&
-                          answers.length &&
-                          answers[currentUserNum] &&
-                          answers[currentUserNum].questions &&
-                          answers[currentUserNum].questions.find(
-                            (a) => a.id_quest === q.id
-                          )
-                          ? answers[currentUserNum].questions.find(
-                              (a) => a.id_quest === q.id
-                            ).values[0]
-                          : ""
-                        : answers &&
-                          answers.length &&
-                          answers.find((a) => a.id_quest === q.id)
-                        ? answers.find((a) => a.id_quest === q.id).values[0]
-                        : ""
-                    }
-                    setTitle={setTitleQuest}
-                    setAnswer={setAnswer}
-                    optional={q.min === 0}
-                    setMinQuest={setMinQuest}
-                    position={q.position}
-                    deleteQuest={deleteQuest}
-                    moveQuest={moveQuest}
-                    index={index}
-                  />
-                )
-              )}
-
-            {mode === "create" && <PollAddQuest addQuest={addQuest} />}
-
-            {mode === "results" && (
-              <PollPagination
-                currentUserNum={currentUserNum}
-                setCurrentUserNum={setCurrentUserNum}
-                maxUserNum={answers.length}
+              setPoll={setPoll}
+              poll={poll}
+              answers={answers}
+              setShowModal={setShowModal}
+              setReloadPollList={setReloadPollList}
+              setAnswers={setAnswers}
+              setNewUsername={setNewUsername}
+              newUsername={newUsername}
+            >
+              <PollHeader
+                mode={mode}
+                title={poll.name || ""}
+                setTitle={setTitle}
+                username={
+                  (answers &&
+                    answers[currentUserNum] &&
+                    answers[currentUserNum].user) ||
+                  newUsername
+                }
+                setUsername={setNewUsername}
               />
-            )}
-          </PollForm>
+
+              {poll &&
+                poll.questions &&
+                poll.questions.map((q, index) =>
+                  mode === "create" ? (
+                    q.closed ? (
+                      <PollClosedQuestCreate
+                        position={q.position}
+                        key={`closed_${index}`}
+                        title={q.name}
+                        setTitle={setTitleQuest}
+                        moveQuest={moveQuest}
+                        deleteQuest={deleteQuest}
+                        options={q.options}
+                        addQuestOption={addQuestOption}
+                        deleteQuestOption={deleteQuestOption}
+                        setQuestOption={setQuestOption}
+                        max={q.max}
+                        min={q.min}
+                        setMaxQuest={setMaxQuest}
+                        setMinQuest={setMinQuest}
+                        index={index}
+                      />
+                    ) : (
+                      <PollOpenQuestCreate
+                        key={`open_${index}`}
+                        title={q.name}
+                        setTitle={setTitleQuest}
+                        optional={q.min === 0}
+                        setMinQuest={setMinQuest}
+                        position={q.position}
+                        deleteQuest={deleteQuest}
+                        moveQuest={moveQuest}
+                        index={index}
+                      />
+                    )
+                  ) : mode === "vote" || mode === "results" ? (
+                    q.closed ? (
+                      <PollClosedQuest
+                        key={`closed_${index}`}
+                        id_quest={q.id}
+                        mode={mode}
+                        title={q.name}
+                        index={index}
+                        options={q.options}
+                        max={q.max}
+                        min={q.min}
+                        setAnswer={setAnswer}
+                        answers={
+                          mode === "results"
+                            ? answers &&
+                              answers.length &&
+                              answers[currentUserNum] &&
+                              answers[currentUserNum].questions &&
+                              answers[currentUserNum].questions.find(
+                                (a) => a.id_quest === q.id
+                              )
+                              ? answers[currentUserNum].questions.find(
+                                  (a) => a.id_quest === q.id
+                                ).values
+                              : []
+                            : answers &&
+                              answers.length &&
+                              answers.find((a) => a.id_quest === q.id)
+                            ? answers.find((a) => a.id_quest === q.id).values
+                            : []
+                        }
+                      />
+                    ) : (
+                      <PollOpenQuest
+                        key={`open_${index}`}
+                        mode={mode}
+                        title={q.name}
+                        id_quest={q.id}
+                        optional={q.min === 0}
+                        position={q.position}
+                        setAnswer={setAnswer}
+                        answer={
+                          mode === "results"
+                            ? answers &&
+                              answers.length &&
+                              answers[currentUserNum] &&
+                              answers[currentUserNum].questions &&
+                              answers[currentUserNum].questions.find(
+                                (a) => a.id_quest === q.id
+                              )
+                              ? answers[currentUserNum].questions.find(
+                                  (a) => a.id_quest === q.id
+                                ).values[0]
+                              : ""
+                            : answers &&
+                              answers.length &&
+                              answers.find((a) => a.id_quest === q.id)
+                            ? answers.find((a) => a.id_quest === q.id).values[0]
+                            : ""
+                        }
+                      />
+                    )
+                  ) : null
+                )}
+
+              {mode === "create" && <PollAddQuest addQuest={addQuest} />}
+
+              {mode === "results" && (
+                <PollPagination
+                  currentUserNum={currentUserNum}
+                  setCurrentUserNum={setCurrentUserNum}
+                  maxUserNum={answers.length}
+                />
+              )}
+            </PollForm>
+          )
+        ) : !loading ? (
+          <div className="mt-3">
+            <ErrorAlert errors={errorApi || externalErrorApi} />
+          </div>
+        ) : (
+          <Loading />
         )}
       </Modal.Body>
     </Modal>

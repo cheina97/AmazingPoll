@@ -1,4 +1,3 @@
-//@ts-check
 "use strict";
 const bcrypt = require("bcrypt");
 const sqlite3 = require("sqlite3");
@@ -52,7 +51,14 @@ const db_getPollList = (id_manager) => {
 };
 
 const db_getPollAnswers = (id_poll, id_manager) => {
-  const sql = "SELECT * FROM questions q, answers a, polls p WHERE a.id_quest = q.id_quest AND p.id_poll=q.id_poll AND q.id_poll=? AND p.id_manager=?;";
+  const sql = `
+  SELECT * 
+  FROM questions q, answers a, polls p, submissions s 
+  WHERE a.id_quest = q.id_quest AND 
+        p.id_poll=q.id_poll AND 
+        q.id_poll=? AND 
+        a.id_submission=s.id_submission AND
+        p.id_manager=?;`;
   
   return new Promise((resolve, reject) => {
     db.all(sql, [id_poll,id_manager], (err, rows) => {
@@ -62,6 +68,7 @@ const db_getPollAnswers = (id_poll, id_manager) => {
           return {
             id_quest: x.id_quest,
             id_submission: x.id_submission,
+            user: x.user,
             value: x.value,
           };
         })

@@ -9,7 +9,7 @@ function RefreshButton(props) {
       className="btn-refresh-position btn btn-success rounded-circle"
       style={{ width: "50px", height: "50px", font: "2em sans-serif" }}
       onClick={() => {
-        props.setReload(true)
+        props.setReloadPollList(true)
       }}
     >
       <ArrowRepeat size="25px" className="iconrefresh" />
